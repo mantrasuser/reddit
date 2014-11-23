@@ -222,6 +222,7 @@ class Globals(object):
             'ENFORCE_RATELIMIT',
             'RL_SITEWIDE_ENABLED',
             'RL_OAUTH_SITEWIDE_ENABLED',
+            'RL_STRICT_ENFORCEMENT',
         ],
 
         ConfigValue.tuple: [
@@ -261,6 +262,11 @@ class Globals(object):
             'wiki_page_privacy_policy',
             'wiki_page_user_agreement',
             'wiki_page_gold_bottlecaps',
+            'fraud_email',
+            'feedback_email',
+            'share_reply',
+            'nerds_email',
+            'smtp_server',
         ],
 
         ConfigValue.choice(ONE=CL_ONE, QUORUM=CL_QUORUM): [
