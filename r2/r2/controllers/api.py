@@ -95,7 +95,7 @@ from r2.lib.media import str_to_image
 from r2.controllers.api_docs import api_doc, api_section
 from r2.lib.search import SearchQuery
 from r2.controllers.oauth2 import require_oauth2_scope, allow_oauth2_access
-from r2.lib.template_helpers import add_sr, get_domain
+from r2.lib.template_helpers import add_sr, get_domain, make_url_protocol_relative
 from r2.lib.system_messages import notify_user_added
 from r2.controllers.ipn import generate_blob
 from r2.lib.lock import TimeoutExpired
@@ -1417,14 +1417,15 @@ class ApiController(RedditController):
                 state=VBoolean('state'))
     @api_doc(api_section.links_and_comments)
     def POST_sendreplies(self, thing, state):
-        """Enable or disable inbox replies for a link.
+        """Enable or disable inbox replies for a link or comment.
 
         `state` is a boolean that indicates whether you are enabling or
         disabling inbox replies - true to enable, false to disable.
 
         """
-        if not isinstance(thing, Link):
+        if not isinstance(thing, (Link, Comment)):
             return
+
         thing.sendreplies = state
         thing._commit()
 
@@ -2015,11 +2016,7 @@ class ApiController(RedditController):
                 description = wiki.modactions.get('config/stylesheet')
                 ModAction.create(c.site, c.user, 'wikirevise', description)
 
-        parsed_http, parsed_https = parsed
-        if c.secure:
-            jquery.apply_stylesheet(parsed_https)
-        else:
-            jquery.apply_stylesheet(parsed_http)
+        jquery.apply_stylesheet(parsed)
 
         if op == 'preview':
             # try to find a link to use, otherwise give up and
@@ -2620,19 +2617,30 @@ class ApiController(RedditController):
         else: # From no to yes
             send_message = True
 
-        # Send a message if this is a top-level comment on a submission that
-        # does not have sendreplies set, if it's the first distinguish for this
-        # comment, and if the user isn't banned or blocked by the author
+        # Send a message if this is a top-level comment on a submission or
+        # comment that has disabled receiving inbox notifications of replies, if
+        # it's the first distinguish for this comment, and if the user isn't
+        # banned or blocked by the author (replying didn't generate an inbox
+        # notification, send one now upon distinguishing it)
         if isinstance(thing, Comment):
-            link = Link._byID(thing.link_id, data=True)
-            to = Account._byID(link.author_id, data=True)
+            if not thing.parent_id:
+                link = Link._byID(thing.link_id, data=True)
+                to = Account._byID(link.author_id, data=True)
+                replies_enabled = link.sendreplies
+            else:
+                parent = Comment._byID(thing.parent_id, data=True)
+                to = Account._byID(parent.author_id, data=True)
+                replies_enabled = parent.sendreplies
+
+            previously_distinguished = hasattr(thing, 'distinguished')
+            user_can_notify = (not c.user._spam and
+                               c.user._id not in to.enemies and
+                               to.name != c.user.name)
+
             if (send_message and
-                    thing.parent_id is None and
-                    not link.sendreplies and
-                    not hasattr(thing, 'distinguished') and
-                    not c.user._spam and
-                    c.user._id not in to.enemies and
-                    to.name != c.user.name):
+                    not replies_enabled and
+                    not previously_distinguished and
+                    user_can_notify):
                 inbox_rel = Inbox._add(to, thing, 'selfreply')
                 queries.new_comment(thing, inbox_rel)
 
@@ -4098,7 +4106,7 @@ class ApiController(RedditController):
                 client._commit()
                 form.set_text('.status', 'uploaded')
                 jquery('#developed-app-%s .app-icon img'
-                       % client._id).attr('src', g.media_provider.convert_to_https(client.icon_url))
+                       % client._id).attr('src', make_url_protocol_relative(client.icon_url))
                 jquery('#developed-app-%s .ajax-upload-form'
                        % client._id).hide()
                 jquery('#developed-app-%s .edit-app-icon-button'

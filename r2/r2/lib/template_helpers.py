@@ -103,24 +103,26 @@ def static(path):
 
 
 def make_url_protocol_relative(url):
-    if not url:
+    if not url or url.startswith("//"):
         return url
 
-    assert url.startswith("http://"), "make_url_protocol_relative: not http"
-    return url[len("http:"):]
+    scheme, netloc, path, query, fragment = urlparse.urlsplit(url)
+    return urlparse.urlunsplit((None, netloc, path, query, fragment))
 
 
-def media_https_if_secure(url):
-    if not c.secure:
+def make_url_https(url):
+    if not url or url.startswith("https://"):
         return url
-    return g.media_provider.convert_to_https(url)
+
+    scheme, netloc, path, query, fragment = urlparse.urlsplit(url)
+    return urlparse.urlunsplit(("https", netloc, path, query, fragment))
 
 
 def header_url(url):
     if url == g.default_header_url:
         return static(url)
     else:
-        return media_https_if_secure(url)
+        return make_url_protocol_relative(url)
 
 
 def js_config(extra_config=None):
@@ -151,6 +153,7 @@ def js_config(extra_config=None):
         # where do ajax requests go?
         "ajax_domain": get_domain(cname=c.authorized_cname, subreddit=False),
         "stats_domain": g.stats_domain or '',
+        "stats_sample_rate": g.stats_sample_rate or 0,
         "extension": c.extension,
         "https_endpoint": is_subdomain(request.host, g.domain) and g.https_endpoint,
         # does the client only want to communicate over HTTPS?

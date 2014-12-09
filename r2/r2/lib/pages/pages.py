@@ -120,10 +120,11 @@ from r2.lib.utils import url_links_builder, make_offset_date, median, to36
 from r2.lib.utils import trunc_time, timesince, timeuntil, weighted_lottery
 from r2.lib.template_helpers import (
     add_sr,
-    get_domain,
-    format_number,
-    media_https_if_secure,
     comment_label,
+    format_number,
+    get_domain,
+    make_url_https,
+    make_url_protocol_relative,
     static,
 )
 from r2.lib.subreddit_search import popular_searches
@@ -146,6 +147,7 @@ import sys, random, datetime, calendar, simplejson, re, time
 import time
 from itertools import chain, product
 from urllib import quote, urlencode
+from urlparse import urlparse
 
 # the ip tracking code is currently deeply tied with spam prevention stuff
 # this will be open sourced as soon as it can be decoupled
@@ -306,8 +308,7 @@ class Reddit(Templated):
         if srbar and not c.cname and not is_api():
             self.srtopbar = SubredditTopBar()
 
-        if (c.user_is_loggedin and self.show_sidebar
-            and not is_api() and not self.show_wiki_actions):
+        if c.user_is_loggedin and not is_api() and not self.show_wiki_actions:
             # insert some form templates for js to use
             # TODO: move these to client side templates
             gold_link = GoldPayment("gift",
@@ -333,8 +334,11 @@ class Reddit(Templated):
                                        thing_type="comment",
                                       )
             report_form = ReportForm()
-            self._content = PaneStack([ShareLink(), content,
-                                       gold_comment, gold_link, report_form])
+
+            panes = [ShareLink(), content, report_form]
+            if self.show_sidebar:
+                panes.extend([gold_comment, gold_link])
+            self._content = PaneStack(panes)
         else:
             self._content = content
 
@@ -355,15 +359,15 @@ class Reddit(Templated):
     def get_subreddit_stylesheet_url(sr):
         if not g.css_killswitch and c.can_apply_styles and c.allow_styles:
             if c.secure:
-                if sr.stylesheet_url_https:
+                if sr.stylesheet_url:
+                    return make_url_https(sr.stylesheet_url)
+                elif sr.stylesheet_url_https:
                     return sr.stylesheet_url_https
-                elif sr.stylesheet_contents_secure:
-                    return sr.stylesheet_url
             else:
-                if sr.stylesheet_url_http:
-                    return sr.stylesheet_url_http
-                elif sr.stylesheet_contents:
+                if sr.stylesheet_url:
                     return sr.stylesheet_url
+                elif sr.stylesheet_url_http:
+                    return sr.stylesheet_url_http
 
     def wiki_actions_menu(self, moderator=False):
         buttons = []
@@ -631,7 +635,9 @@ class Reddit(Templated):
 
                 if num_not_shown > 0:
                     more_text = _("...and %d more") % (num_not_shown)
-                    mod_href = "http://%s/about/moderators" % get_domain()
+                else:
+                    more_text = _("about moderation team")
+                mod_href = c.site.path + 'about/moderators'
 
                 if '/r/%s' % c.site.name == g.admin_message_acct:
                     label = _('message the admins')
@@ -779,6 +785,9 @@ class Reddit(Templated):
 
     def page_classes(self):
         classes = set()
+
+        if not feature.is_enabled('new_markdown_style'):
+            classes.add('old-markdown')
 
         if c.user_is_loggedin:
             classes.add('loggedin')
@@ -991,7 +1000,7 @@ class SponsorshipBox(Templated):
 
 class SideContentBox(Templated):
     def __init__(self, title, content, helplink=None, _id=None, extra_class=None,
-                 more_href = None, more_text = "more", collapsible=False):
+                 more_href=None, more_text="more", collapsible=False):
         Templated.__init__(self, title=title, helplink = helplink,
                            content=content, _id=_id, extra_class=extra_class,
                            more_href = more_href, more_text = more_text,
@@ -1055,13 +1064,18 @@ class PrefFeeds(Templated):
 class PrefSecurity(Templated):
     pass
 
+
+re_promoted = re.compile(r"/promoted.*", re.I)
+
 class PrefUpdate(Templated):
     """Preference form for updating email address and passwords"""
-    def __init__(self, email=True, password=True, verify=False, dest=None):
+    def __init__(self, email=True, password=True, verify=False, dest=None, subscribe=False):
+        is_promoted = dest and re.match(re_promoted, urlparse(dest).path) != None
         self.email = email
         self.password = password
         self.verify = verify
         self.dest = dest
+        self.subscribe = subscribe or is_promoted
         Templated.__init__(self)
 
 class PrefApps(Templated):
@@ -1207,9 +1221,12 @@ class LoginPage(BoringPage):
         if c.render_style == "compact":
             title = self.short_title
         else:
-            title = _("login or register")
+            if feature.is_enabled('new_login_flow'):
+                title = _("create account or sign in")
+            else:
+                title = _("login or register")
 
-        BoringPage.__init__(self, "" if feature.is_enabled('new_login_flow') else title, **context)
+        BoringPage.__init__(self, title, **context)
 
         if self.dest:
             u = UrlParser(self.dest)
@@ -2393,7 +2410,7 @@ class SubredditStylesheet(Templated):
     def __init__(self, site = None,
                  stylesheet_contents = ''):
         raw_images = ImagesByWikiPage.get_images(c.site, "config/stylesheet")
-        images = {name: media_https_if_secure(url)
+        images = {name: make_url_protocol_relative(url)
                   for name, url in raw_images.iteritems()}
 
         Templated.__init__(self, site = site, images=images,
@@ -3841,6 +3858,7 @@ class PromoteLinkEdit(PromoteLinkBase):
         self.promotion_log = PromotionLog.get(link)
 
         self.min_bid = 0 if c.user_is_sponsor else g.min_promote_bid
+        self.max_bid = 0 if c.user_is_sponsor else g.max_promote_bid
 
         self.priorities = [(p.name, p.text, p.description, p.default, p.inventory_override, p.cpm)
                            for p in sorted(PROMOTE_PRIORITIES.values(), key=lambda p: p.value)]

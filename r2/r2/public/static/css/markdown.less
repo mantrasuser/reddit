@@ -1,0 +1,373 @@
+@red: #F2142F;
+@orangered: #FF4500;
+@orange: #FF912E;
+@yellow: #FFD635;
+@highlight: #FFF03E;
+@gold: #D8C161;
+@lime: #C7E223;
+@green: #80D654;
+@teal: #52C0B1;
+@dark-teal: #0BA08E;
+@link-blue: #218bb2;
+@periwinkle: #9494FF;
+@white: #FFFFFF;
+@off-white: #FCFCF7;
+@eggshell: #F2F1E9;
+@pale-grey: #E5E3DA;
+@grey: #B5B3AC;
+@semi-black: #222222;
+@ui-blue: #336699;
+@ads-blue: #6093BF;
+@ads-grey: #F8F8F8;
+@dark-grey: #808080;
+@text-grey: #706f6f;
+
+
+.md-margins(@font, @top, @bottom) {
+  margin-top: (@top / @font) * 1em;
+  margin-bottom: (@bottom / @font) * 1em;
+}
+
+.md-font-size(@font, @line, @top, @bottom) {
+  // define a desired font size/line-height/margin-top/margin-bottom as ints
+  // have converted to em-based definition
+  font-size: (@font / 10) * 1em;
+  line-height: (@line / @font) * 1em;
+  .md-margins(@font, @top, @bottom);
+}
+
+.md-font-size(@font, @line) {
+  font-size: (@font / 10) * 1em;
+  line-height: (@line / @font) * 1em;
+}
+
+
+.md {
+  font-size: x-small; // == 10px
+
+  h1, h2, h3, h4, h5, h6 {
+    &:extend(.md .-headers all);
+  }
+
+  th, td {
+    &:extend(.md .-cells all);
+  }
+
+  ul, ol {
+    &:extend(.md .-lists all);
+  }
+
+  .-lists, pre, blockquote, table, p {
+    &:extend(.md .-blocks all);
+  }
+
+  p, pre > code, th, td, li {
+    &:extend(.md .-text all);
+  }
+
+  // font-size is x-small, or 10px, but the default font-size for content is
+  // actually 14px;  84em at 10px === 60em at 14px.
+  max-width: 84em; 
+
+  .-headers {
+    border: 0;
+    -webkit-font-smoothing: antialiased;
+    
+    code {
+      font-size: inherit;
+    }
+  }
+
+  &,
+  .-headers {
+    color: @semi-black;
+  }
+
+  blockquote,
+  del {
+    color: @text-grey;
+  }
+
+  a {
+    color: @link-blue;
+    text-decoration: none;
+  }
+
+  h6 {
+    text-decoration: underline;
+  }
+
+  em {
+    font-style: italic;
+    font-weight: inherit;
+  }
+
+  th,
+  strong,
+  .-headers {
+    font-weight: 600;
+    font-style: inherit;
+  }
+
+  h2,
+  h4 {
+    font-weight: 500;
+  }
+
+  &,
+  h6 {
+    font-weight: 400;
+  }
+
+  * {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  tr,
+  code,
+  .-cells,
+  .-lists,
+  .-blocks,
+  .-headers {
+    margin: 0;
+    padding: 0;
+  }
+
+  hr {
+    border: 0;
+    color: transparent;
+    background: @pale-grey;
+    height: 2px;
+    padding: 0;
+  }
+
+  tr {
+    background-color: @white;
+    
+    &:nth-child(2n) {
+      background-color: @off-white;
+    }
+  }
+
+  blockquote {
+    border-left: 2px solid @pale-grey;
+  }
+
+  code,
+  pre {
+    border: 1px solid @pale-grey;
+    background-color: @off-white;
+    border-radius: 2px;
+  }
+
+  code {
+    margin: 0 2px;
+    white-space: nowrap;
+  }
+
+  pre {
+    overflow: auto;
+
+    code {
+      white-space: pre;
+      background-color: transparent;
+      border: 0;
+      display: block;
+      padding: 0 !important;
+    }
+  }
+
+  // can't rely on &:extend here, doesn't apply the align rules
+  td, th {
+    border: 1px solid @pale-grey;
+    text-align: left;
+
+    &[align=center] {
+      text-align: center;
+    }
+
+    &[align=right] {
+      text-align: right;
+    }
+  }
+
+  img {
+    max-width: 100%;
+  }
+
+  ul {
+    list-style-type: disc;
+  }
+
+  ol {
+    list-style-type: decimal;
+  }
+
+  blockquote {
+    padding: 0 8px;
+  }
+
+  code {
+    padding: 0 4px;
+  }
+
+  pre,
+  .-cells {
+    padding: 4px 8px;
+  }
+
+  .-lists {
+    padding-left: 24px;
+  }
+
+  sup {
+    font-size: 0.86em;
+    line-height: 0;
+  }
+
+  li li,
+  li p {
+    font-size: 1em !important;
+  }
+}
+
+
+.link .usertext .md {
+  padding: 5px 10px;
+}
+
+.commentarea .md {
+  margin: 5px 0;
+}
+
+
+.md {
+  // default font scale : font-size, line-height, margin-top, margin-bottom
+  h1,
+  h2 {
+    .md-font-size(18, 25, 15, 15);
+  }
+
+  h3,
+  h4 {
+    .md-font-size(16, 20, 10, 10);
+  }
+
+  h5,
+  h6 {
+    .md-font-size(14, 20, 10, 5);
+  }
+
+  .-blocks {
+    .md-margins(14, 5, 5);
+  }
+  
+  .-text {
+    .md-font-size(14, 20);
+  }
+}
+
+.wiki-page-content .md {
+  // font scale for wiki pages
+  h1 {
+    .md-font-size(32, 40, 40, 25);
+  }
+
+  h2 {
+    .md-font-size(24, 30, 30, 15);
+  }
+
+  h3 {
+    .md-font-size(20, 25, 20, 10);
+  }
+
+  .-blocks {
+    .md-margins(14, 5, 10);
+  }
+
+  .-text {
+    .md-font-size(14, 20);
+  }
+}
+
+.side .md {
+  h1,
+  h2 {
+    .md-margins(18, 10, 10);
+  }
+
+  // font scale for sidebar
+  .-blocks {
+    .md-margins(12, 10, 5);
+  }
+
+  .-text {
+    .md-font-size(12, 15);
+  }
+}
+
+.wiki-page-content .md {
+  // Style changes for wiki pages
+  h1,
+  h6 {
+    color: @text-grey;
+    font-weight: 300;
+  }
+
+  h2 {
+    color: @ui-blue;
+  }
+
+  h2,
+  h3 {
+    font-weight: 600;
+  }
+
+  h4 {
+    font-style: italic;
+  }
+
+  h5 {
+    text-decoration: underline;
+  }
+
+  h4,
+  h5 {
+    font-weight: 400;
+  }
+
+  h6 {
+    text-decoration: none;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    .md-font-size(12, 15, 15, 5);
+  }
+}
+
+
+.md {
+  &,
+  .-cells,
+  .-lists,
+  .-blocks,
+  .-headers {
+    > :first-child {
+      margin-top: 0;
+    }
+
+    > :last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  li {
+    > :first-child {
+      margin-top: 0;
+      
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+  }
+}

@@ -77,6 +77,7 @@ class Link(Thing, Printable):
                      media_object=None,
                      secure_media_object=None,
                      media_url=None,
+                     gifts_embed_url=None,
                      media_autoplay=False,
                      domain_override=None,
                      promoted=None,
@@ -812,6 +813,7 @@ class Comment(Thing, Printable):
                      banned_before_moderator=False,
                      parents=None,
                      ignore_reports=False,
+                     sendreplies=True,
                      )
     _essentials = ('link_id', 'author_id')
 
@@ -860,9 +862,10 @@ class Comment(Thing, Printable):
 
         to = None
         name = 'inbox'
-        if parent:
+        if parent and parent.sendreplies:
             to = Account._byID(parent.author_id, True)
-        elif link.sendreplies:
+
+        if not parent and link.sendreplies:
             to = Account._byID(link.author_id, True)
             name = 'selfreply'
 
@@ -1106,10 +1109,9 @@ class Comment(Thing, Printable):
             item.can_gild = (
                 # this is a way of checking if the user is logged in that works
                 # both within CommentPane instances and without.  e.g. CommentPane
-                # explicitly sets user_is_loggedin = False but can_reply is
-                # correct.  while on user overviews, you can't reply but will get
-                # the correct value for user_is_loggedin
-                (c.user_is_loggedin or getattr(item, "can_reply", True)) and
+                # explicitly sets user_is_loggedin = False but can_save will
+                # always be True if the user is logged in
+                item.can_save and
                 # you can't gild your own comment
                 not (c.user_is_loggedin and
                      item.author and
@@ -1237,6 +1239,9 @@ class Comment(Thing, Printable):
                 item.voting_score = [
                     item.score - 1, item.score, item.score + 1]
                 item.collapsed = False
+
+            if item.is_author:
+                item.inbox_replies_enabled = item.sendreplies
 
             #will seem less horrible when add_props is in pages.py
             from r2.lib.pages import UserText

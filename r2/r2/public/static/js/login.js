@@ -92,11 +92,11 @@ r.login.hoist = {
 r.login.ui = {
     init: function() {
         if (!r.config.logged) {
-            $('.content form.login-form, .side form.login-form, #login-form').each(function(i, el) {
+            $('.content .login-form, .content #login-form, .side .login-form').each(function(i, el) {
                 new r.ui.LoginForm(el)
             })
 
-            $('.content form.register-form, #register-form').each(function(i, el) {
+            $('.content .register-form, .content #register-form').each(function(i, el) {
                 new r.ui.RegisterForm(el)
             })
 
@@ -287,6 +287,33 @@ r.ui.RegisterForm = function() {
     }
 
     this.$el.find('[name="passwd2"]').on('keyup', $.proxy(this, 'checkPasswordMatch'));
+    this.$el.find('[name="passwd"]')
+        .strengthMeter({
+            username: '#user_reg',
+            delay: 0,
+            trigger: 'loaded.validator',
+        })
+        .on('score.strengthMeter', function(e, score) {
+            var $el = $(this);
+
+            if ($el.stateify('getCurrentState') === 'error') {
+                return;
+            }
+
+            var message;
+
+            if (score > 90) {
+                message = r._('Password is strong');
+            } else if (score > 70) {
+                message = r._('Password is good');
+            } else if (score > 30) {
+                message = r._('Password is fair');
+            } else {
+                message = r._('Password is weak');
+            }
+
+            $el.stateify('showMessage', message);
+        });
 
     this.$submit = this.$el.find('.submit button');
 }
@@ -367,8 +394,11 @@ r.ui.RegisterForm.prototype = $.extend(new r.ui.Form(), {
 
 r.ui.LoginPopup = function(el) {
     r.ui.Base.call(this, el)
-    this.loginForm = new r.ui.LoginForm(this.$el.find('form.login-form:first'))
-    this.registerForm = new r.ui.RegisterForm(this.$el.find('form.register-form:first'))
+    this.loginForm = new r.ui.LoginForm(this.$el.find('#login-form'))
+    this.registerForm = new r.ui.RegisterForm(this.$el.find('#register-form'))
+
+    this.$el.on('keydown', this.shortcuts.bind(this));
+    this.$el.on('click', '.cover, .hidecover', this.hide.bind(this));
 }
 r.ui.LoginPopup.prototype = $.extend(new r.ui.Base(), {
     show: function(notice, callback) {
@@ -379,6 +409,14 @@ r.ui.LoginPopup.prototype = $.extend(new r.ui.Base(), {
             .find(".cover-msg").text(notice).toggle(!!notice).end()
             .find('.popup').css('top', $(document).scrollTop()).end()
             .show()
+
+        this.shown = true;
+    },
+
+    hide: function () {
+        this.$el.hide();
+
+        this.shown = false;
     },
 
     showLogin: function() {
@@ -389,5 +427,12 @@ r.ui.LoginPopup.prototype = $.extend(new r.ui.Base(), {
     showRegister: function() {
         this.show.apply(this, arguments)
         this.registerForm.focus()
-    }
-})
+    },
+
+    shortcuts: function (e) {
+        if (e.which === 27 && this.shown) {
+            this.hide();
+        }
+    },
+
+});

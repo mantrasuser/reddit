@@ -1037,6 +1037,7 @@ class MinimalController(BaseController):
             if g.ENFORCE_RATELIMIT:
                 # For non-abort situations, the headers will be added in post(),
                 # to avoid including them in a pagecache
+                request.environ['retry_after'] = retry_after
                 response.headers.update(c.ratelimit_headers)
                 abort(429)
         elif reqs_remaining < (0.1 * max_reqs):
@@ -1117,9 +1118,9 @@ class MinimalController(BaseController):
         c.can_use_pagecache = self.can_use_pagecache()
 
         if request.method.upper() == 'GET' and c.can_use_pagecache:
-            request_key = self.request_key()
+            c.request_key = self.request_key()
             try:
-                r = g.pagecache.get(request_key)
+                r = g.pagecache.get(c.request_key)
             except MemcachedError as e:
                 g.log.warning("pagecache error: %s", e)
                 return
@@ -1172,13 +1173,14 @@ class MinimalController(BaseController):
         if (g.page_cache_time
             and request.method.upper() == 'GET'
             and c.can_use_pagecache
+            and c.request_key
             and not c.used_cache
             and not would_poison
             and response.status_int not in (304, 429)
             and not response.status.startswith("5")
             and not c.is_exception_response):
             try:
-                g.pagecache.set(self.request_key(),
+                g.pagecache.set(c.request_key,
                                 (response._current_obj(), c.cookies),
                                 g.page_cache_time)
             except MemcachedError as e:
